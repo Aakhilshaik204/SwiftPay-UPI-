@@ -1,0 +1,354 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <vector>
+#include <unordered_map>
+#include <iomanip>
+#include <ctime>
+#include <random>
+#include <set>
+#include <algorithm>
+
+using namespace std;
+
+const string USER_DATA_FILE = "users1.txt";
+const string TRANSACTION_HISTORY_FILE = "transactions1.txt";
+
+struct User {
+    string username;
+    string password;
+    double balance;
+    string linkedBank;
+    string upiPin; 
+    double totalCashbackEarned = 0.0; 
+    vector<string> transactionHistory;
+    set<string> frequentRecipients{"Balaiah", "Karthik", "Arun"}; 
+};
+
+class SwiftPayApp {
+private:
+    unordered_map<string, User> users;
+    User* currentUser;
+
+public:
+    SwiftPayApp() : currentUser(nullptr) {
+        loadUsers();
+    }
+
+    void run() {
+        int choice;
+        cout<<"Welcome to SwiftPay- Fast,secure, and covenient payments at your fingertips "<<endl;
+        while (true) {
+            if (currentUser == nullptr) {
+                cout << "1. Register\n2. Login\n3. Exit\n";
+                cout << "Enter your choice: ";
+                cin >> choice;
+                cin.ignore();
+
+                switch (choice) {
+                    case 1:
+                        registerUser();
+                        break;
+                    case 2:
+                        loginUser();
+                        break;
+                    case 3:
+                        return;
+                    default:
+                        cout << "Invalid choice!\n";
+                }
+            } else if (currentUser->linkedBank.empty()) {
+                linkBankAccount();
+            } else if (currentUser->upiPin.empty()) {
+                createUPIPin();
+            } else {
+                showMainMenu();
+                cout << "Enter your choice: ";
+                cin >> choice;
+                cin.ignore();
+
+                switch (choice) {
+                    case 1:
+                        transferMoney();
+                        break;
+                    case 2:
+                        checkBalance();
+                        break;
+                    case 3:
+                        viewTransactionHistory();
+                        break;
+                    case 4:
+                        viewRewards();
+                        break;
+                    case 5:
+                        logoutUser();
+                        break;
+                    default:
+                        cout << "Invalid choice!\n";
+                }
+            }
+        }
+    }
+
+private:
+    void loadUsers() {
+        ifstream file(USER_DATA_FILE);
+        if (!file.is_open()) return;
+
+        string line;
+        while (getline(file, line)) {
+            string username = line;
+            getline(file, line);
+            string password = line;
+            getline(file, line);
+            double balance = stod(line);
+
+            User user{ username, password, balance };
+            users[username] = user;
+        }
+    }
+
+    void saveUsers() {
+        ofstream file(USER_DATA_FILE);
+        for (const auto& entry : users) {
+            file << entry.second.username << "\n"
+                 << entry.second.password << "\n"
+                 << entry.second.balance << "\n";
+        }
+    }
+
+    void registerUser() {
+        string username, password;
+        cout << "Enter username: ";
+        getline(cin, username);
+
+        if (users.find(username) != users.end()) {
+            cout << "Username already exists. Try again.\n";
+            return;
+        }
+
+        cout << "Enter password: ";
+        getline(cin, password);
+
+      
+        random_device rd;
+        mt19937 gen(rd());
+        uniform_int_distribution<> balanceDist(1000, 5000);
+        double randomBalance = balanceDist(gen);
+
+        User newUser{ username, password, randomBalance };
+        users[username] = newUser;
+        saveUsers();
+
+        cout << "Registration successful!\n";
+    }
+
+    void loginUser() {
+        string username, password;
+        cout << "Enter username: ";
+        getline(cin, username);
+        cout << "Enter password: ";
+        getline(cin, password);
+
+        auto it = users.find(username);
+        if (it != users.end() && it->second.password == password) {
+            currentUser = &it->second;
+            cout << "Login successful! Welcome " << username << "\n";
+        } else {
+            cout << "Invalid username or password. Try again.\n";
+        }
+    }
+
+    void logoutUser() {
+        currentUser = nullptr;
+        cout << "Logged out successfully.\n";
+    }
+
+    void linkBankAccount() {
+        cout << "Select a bank to link:\n";
+        cout << "1. SBI\n2. Canara\n3. HDFC\n4. ICICI\n5. Axis\n6. Bank of Baroda\n7. Kotak Mahindra\n";
+        int choice;
+        cout << "Enter your choice: ";
+        cin >> choice;
+        cin.ignore();
+
+        switch (choice) {
+            case 1:
+                currentUser->linkedBank = "SBI";
+                break;
+            case 2:
+                currentUser->linkedBank = "Canara";
+                break;
+            case 3:
+                currentUser->linkedBank = "HDFC";
+                break;
+            case 4:
+                currentUser->linkedBank = "ICICI";
+                break;
+            case 5:
+                currentUser->linkedBank = "Axis";
+                break;
+            case 6:
+                currentUser->linkedBank = "Bank of Baroda";
+                break;
+            case 7:
+                currentUser->linkedBank = "Kotak Mahindra";
+                break;
+            default:
+                cout << "Invalid choice. Try again.\n";
+                return;
+        }
+
+        cout << currentUser->linkedBank << " account linked successfully!\n";
+    }
+
+    void createUPIPin() {
+        string pin, confirmPin;
+        cout << "Create a 4-digit UPI PIN: ";
+        getline(cin, pin);
+
+        if (pin.length() != 4 || !all_of(pin.begin(), pin.end(), ::isdigit)) {
+            cout << "Invalid PIN. Must be 4 digits.\n";
+            return;
+        }
+
+        cout << "Confirm UPI PIN: ";
+        getline(cin, confirmPin);
+
+        if (pin == confirmPin) {
+            currentUser->upiPin = pin;
+            cout << "UPI PIN created successfully!\n";
+        } else {
+            cout << "PINs do not match. Try again.\n";
+        }
+    }
+
+    bool verifyUPIPin() {
+        string enteredPin;
+        cout << "Enter your UPI PIN: ";
+        getline(cin, enteredPin);
+        return enteredPin == currentUser->upiPin;
+    }
+
+    void showMainMenu() {
+        cout << "\nWelcome " << currentUser->username << "!\n";
+        cout << "1. Transfer Money\n";
+        cout << "2. Check Balance\n";
+        cout << "3. Transaction History\n";
+        cout << "4. Rewards \n";
+        cout << "5. Logout\n";
+    }
+
+    void transferMoney() {
+        string recipient;
+        double amount;
+
+        cout << "Frequent Recipients: ";
+        for (const string& rec : currentUser->frequentRecipients) {
+            cout << rec << " ";
+        }
+        cout << "\nEnter recipient username: ";
+        getline(cin, recipient);
+
+        if (users.find(recipient) == users.end() && currentUser->frequentRecipients.find(recipient) == currentUser->frequentRecipients.end()) {
+            cout << "Recipient not found.\n";
+            return;
+        }
+
+        cout << "Enter amount to transfer: ";
+        cin >> amount;
+        cin.ignore();
+
+        if (amount > currentUser->balance) {
+            cout << "Insufficient balance.\n";
+            return;
+        }
+
+        if (!verifyUPIPin()) {
+            cout << "Incorrect UPI PIN. Access denied.\n";
+            return;
+        }
+
+        currentUser->balance -= amount;
+        string transaction = "Transferred Rs. " + to_string(amount) + " to " + recipient;
+
+        // Generate random transaction ID
+        string transactionID = generateTransactionID();
+        transaction += " (Transaction ID: " + transactionID + ")";
+        currentUser->transactionHistory.push_back(transaction);
+        logTransaction(transaction);
+
+        cout << "Money transferred successfully! \nTransaction ID: " << transactionID << "\n";
+
+   
+        if (amount >= 500) {
+            random_device rd;
+            mt19937 gen(rd());
+            uniform_int_distribution<> dis(1, 10);
+
+            int cashbackPercentage = dis(gen);
+            double cashbackAmount = (cashbackPercentage / 100.0) * amount;
+            currentUser->balance += cashbackAmount;
+            currentUser->totalCashbackEarned += cashbackAmount;
+
+            string cashbackMessage = "Cashback of Rs. " + to_string(cashbackAmount) +
+                                     " (" + to_string(cashbackPercentage) + "%) applied!";
+            currentUser->transactionHistory.push_back(cashbackMessage);
+            cout << cashbackMessage << "\n";
+        }
+    }
+
+    void checkBalance() {
+      if (!verifyUPIPin()) {
+            cout << "Incorrect UPI PIN. Access denied.\n";
+            return;
+        }
+
+
+        cout << "Your current balance is: Rs. " << fixed << setprecision(2) << currentUser->balance << "\n";
+    }
+
+    void viewTransactionHistory() {
+        if (!verifyUPIPin()) return;
+
+        if (currentUser->transactionHistory.empty()) {
+            cout << "No transactions found.\n";
+        } else {
+            cout << "\nTransaction History:\n";
+            for (const string& transaction : currentUser->transactionHistory) {
+                cout << "- " << transaction << "\n";
+            }
+        }
+    }
+    void viewRewards() {
+        cout << "Total Cashback Earned: Rs. " << fixed << setprecision(2) << currentUser->totalCashbackEarned << "\n";
+    }
+
+    void logTransaction(const string& transaction) {
+        ofstream file(TRANSACTION_HISTORY_FILE, ios::app);
+        if (file.is_open()) {
+            file << currentUser->username << ": " << transaction << "\n";
+        }
+    }
+
+    string generateTransactionID() {
+        static const char alphanum[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        string id;
+
+        random_device rd;
+        mt19937 gen(rd());
+        uniform_int_distribution<> dis(0, sizeof(alphanum) - 2);
+
+        for (int i = 0; i < 12; ++i) {  
+            id += alphanum[dis(gen)];
+        }
+
+        return id;
+    }
+};
+
+int main() {
+    SwiftPayApp app;
+    app.run();
+    return 0;
+}
